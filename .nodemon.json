@@ -1,0 +1,6 @@
+{
+    "verbose": false,
+    "ignore": ["", "node_modules/**", ".git", "dist/"],
+    "watch": ["**"],
+    "ext": "js,json,html,lua,p8"
+}
