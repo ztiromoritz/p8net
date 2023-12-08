@@ -5,12 +5,11 @@ Pico8 Multiplayer Boilerplate
 
 ### 1. Create a .env file with a path to your pico-8 installation.
 
-z.B.:
 ```
 .env
 ----
 
-P8_HOME#$HOME/opt/pico-8
+P8_HOME=$HOME/opt/pico-8
 
 ```
 
