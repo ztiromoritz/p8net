@@ -67,49 +67,84 @@ function _update()
 end
 -->8
 -- client
+
+
 --
+-- this function has to be 
+-- called at least once in 
+-- _update.
+-- it will check if there is 
+-- a message to receive
+-- and as a side effect it will 
+-- try to empty the
+-- send-messages-queue
+--
+-- @return
+--  string of max length 16
+--  or nil
+--
+function check_msg()
+ _handle_queue()
+ 
+ -- 0x5f80..0x5fff
+ local len = peek(0x5f90)
+ if (len<=0) return nil
+
+ local out = ""
+ for i=1,len do
+  local inp = peek(0x5f80+i-1)
+  out=out..chr(inp)
+ end
+ poke(0x5f90,0) --consumed
+ return out
+ 
+end
+
+
+function _queue()
+ local first = 0
+ local last = -1
+ local data = {}
+ function ins(v)
+  last += 1
+ 	data[last]=v
+ end 
+ function deq()
+ 	if first>last then
+ 	return nil
+ 	end
+  local v = data[first]
+ 	 data[first] = nil
+ 	 first+=1
+ 	return v
+ end
+ return ins,deq
+end
+
+_q_ins,_q_deq = _queue()
+
 --
 -- @param msg
 -- string of max length 16
--- 	for example
--- 	"join:"
--- 	"gpos:"
--- 	"spos:140,40"
--- @return
--- string of max length 16
-function send(msg)
-	--todo: gpio protocol
-	--todo: is this blocking
-	--this has to be implemented 
-	--as part of the framework
-end
-
-
-function check_msg()
- -- check if a message is available
- -- 0x5f80..0x5fff
- local len = peek(0x5f90)
- 
- if(len>0) then
-  local out = ""
-  for i=1,len do
-    local inp = peek(0x5f80+i-1)
-    out=out..chr(inp)
-  end
-  poke(0x5f90,0) --consumed
-  return out
- end
- return nil
-end
-
+--
 function send_msg(msg)
+ _q_ins(msg)
+end
+
+
+function _handle_queue()
+ local msg = _q_deq()
+ if (msg==nil) return
+ if (peek(0x5fb0)>0) return
  local len = min(#msg,16)
- if(len>0) then
-  for i=1,len do
-   poke(0x5fa0+i-1,ord(msg[i]))
-  end
-  poke(0x5fb0,len)
+ if (len<=0) return
+ 
+ -- send
+ for i=1,len do
+  poke(0x5fa0+i-1,ord(msg[i]))
  end
+ poke(0x5fb0,len)
+
 end
 
 -->8
