@@ -11,12 +11,12 @@ if [[ -z "${P8_HOME}" ]]; then
 	echo "Please set P8_HOME. You can use a .env file in the project root folder"
 fi
 
-mkdir -p dist/
+mkdir -p dist/www/
+mkdir -p dist/srv/
 
-cp src/p8net.js dist/
-echo "lelel"
-"$P8_HOME"/pico8 -root_path "$(pwd)/src/" -x src/build.p8 -home "$(pwd)/p8-home"
+cp src/public/* dist/www/
+"$P8_HOME"/pico8 -root_path "$(pwd)/src/" -x scripts/build.p8 -home "$(pwd)/p8-home"
 
-#todo extract server.lua 
+
 
 node index.js

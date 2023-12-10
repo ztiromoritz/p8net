@@ -26,6 +26,11 @@ npm start # to start the dev server
 ### 4. navigate to :
 [http://localhost:6108/client/](http://localhost:6108/client/)
 
+## Todo
+ - [ ] Use Lua on server side
+ - [ ] Buffer GPIO in and out
+ - [x] Test Template with two games
+ - [ ] Template for local multiplayer (wasd) vs (arrow)
 
 ## Links
  * CRT Plate: https://www.lexaloffle.com/bbs/?tid#33488

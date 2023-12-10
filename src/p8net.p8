@@ -4,27 +4,65 @@ __lua__
 gmsg="웃웃웃"
 x=30
 y=30
+
+ox=50
+oy=50
+
+me=""
+
+function _init()
+ send_msg("who")
+end
+
 function _update()
-
-
  cls()
 
+ -- receive messages
  local msg = check_msg()
+ local cmd = sub(msg,1,3)
+ local args = sub(msg,5)
+ if(cmd=="you") then
+  me=args 
+  
+ end
+ if(cmd=="pos") then
+  local a = split(args,"|")
+  local id = a[1]
+  if id ~= me then
+   ox=a[2]+0
+   oy=a[3]+0
+  end
+  
+ end
  if(msg~=nil) then
    gmsg=msg
  end
-
+ if (msg=="clr|8") then
+  pal(14,8)
+ end
+ if (msg=="clr|11") then
+  pal(14,11)
+ end
+ spr(1,ox,oy)
+ pal()
+ if (msg=="clr|8") then
+  pal(14,11)
+ end
+ if (msg=="clr|11") then
+  pal(14,8)
+ end
  print(gmsg,20,20,9)
 
-
+ local x_old,y_old = x,y
  spr(1,x,y)
- 
  if btn(⬆️) then y-=1 end
  if btn(⬇️) then y+=1 end
  if btn(⬅️) then x-=1 end
  if btn(➡️) then x+=1 end
- 
- send_msg("x"..x.."y"..y)
+
+ if(x_old~=x or y_old~=y)then
+   send_msg("pos|"..x.."|"..y)
+ end
  
 end
 -->8
@@ -46,6 +84,35 @@ function send(msg)
 	--as part of the framework
 end
 
+
+function check_msg()
+ -- check if a message is available
+ -- 0x5f80..0x5fff
+ local len = peek(0x5f90)
+ 
+ if(len>0) then
+  local out = ""
+  for i=1,len do
+    local inp = peek(0x5f80+i-1)
+    out=out..chr(inp)
+  end
+  poke(0x5f90,0) --consumed
+  return out
+ end
+ return nil
+end
+
+function send_msg(msg)
+ local len = min(#msg,16)
+ if(len>0) then
+  for i=1,len do
+   poke(0x5fa0+i-1,ord(msg[i]))
+  end
+  poke(0x5fb0,len)
+ end
+end
+
+-->8
 --
 --server
 --
@@ -73,35 +140,39 @@ end
 --                 
 -- todo: single_threaded, 
 --   it better is
-function handle(ctx,msg)
 
+colors = {8,1}
+
+function _s_handle(ctx,msg)
+ local c = ctx.clientid
+ local cmd = sub(msg,1,3)
+ local args = sub(msg,5)
+ if(cmd == "pos") then
+  s_snd("pos|"..c.."|"..args)
+  s_dbg("pos|"..c.."|"..args)
+ end
+ if(cmd == "who") then
+  s_sndto(c,"you|"..c)
+ end
 end
 
-function check_msg()
- -- check if a message is available
- -- 0x5f80..0x5fff
- local len = peek(0x5f90)
+function _s_join(ctx)
+ local c = ctx.clientid
+ s_dbg("join "..c)
+ s_dbg("join "..s_all()[1])
+ if s_all()[1]==c then
+  s_sndto(c,"clr|8")
+ else
+  s_sndto(c,"clr|11")
+ end
  
- if(len>0) then
-  local out = ""
-  for i=1,len do
-    local inp = peek(0x5f80+i-1)
-    out=out..chr(inp)
-  end
-  poke(0x5f90,0) --consumed
-  return out
- end
- return nil
+ 
 end
 
-function send_msg(msg)
- local len = min(#msg,16)
- if(len>0) then
-  for i=1,len do
-   poke(0x5fa0+i-1,ord(msg[i]))
-  end
-  poke(0x5fb0,len)
- end
+function _s_init(ctx)
+ s_dbg("server init")
+ 
+ 
 end
 
 __gfx__
