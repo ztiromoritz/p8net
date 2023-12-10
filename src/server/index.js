@@ -1,15 +1,53 @@
-const { LuaFactory } = require('wasmoon');
-const bodyParser = require('body-parser')
-const cookieParser = require('cookie-parser')
-const express = require('express')
-const fs = require('fs');
-const app = express()
-const port = 6108
+import { LuaFactory } from 'wasmoon';
+import bodyParser from 'body-parser';
+import express from 'express';
+import chalk from 'chalk';
+import fs from 'fs';
 
+
+
+const app = express();
+const port = 6108
 const factory = new LuaFactory()
 
+/*     
+		pico-8 pallet
+		--color-0: #000000;
+		--color-1: #1d2b53;
+		--color-2: #7e2553;
+		--color-3: #008751;
+		--color-4: #ab5236;
+		--color-5: #5f574f;
+		--color-6: #c2c3c7;
+		--color-7: #fff1e8;
+		--color-8: #ff004d;
+		--color-9: #ffa300;
+		--color-10: #ffec27;
+		--color-11: #00e436;
+		--color-12: #29adff;
+		--color-13: #83769c;
+		--color-14: #ff77a8;
+		--color-15: #ffccaa;
+*/
+const { log_lua, log_server , log_client_msg, log_server_msg, log_broadcast_msg} = (() => {
+	const _lua = chalk.hex('#29adff');
+	const _server = chalk.hex('#00e436');
+	const _client_msg = chalk.hex('#ff004d');
+	const _server_msg = chalk.hex('#ffa300')
 
-
+	const log_lua = (msg) => console.log("👾 " + _server(msg));
+	const log_server = (msg) => console.log("⚙️+ " + _lua(msg));
+	const log_client_msg = (msg) => console.log("⬅️l "+ _client_msg(msg))
+	const log_server_msg = (msg) => console.log("➡️  "+ _server_msg(msg))
+	const log_broadcast_msg = (msg) => console.log("➡️  "+ _server_msg(msg))
+  return {
+		log_lua,
+		log_server,
+		log_client_msg,
+		log_server_msg,
+		log_broadcast_msg
+	}
+})();
 
 function SSE() {
 
@@ -18,7 +56,7 @@ function SSE() {
 
 
 	/** @type {(on_join:(clientId:string) => void, on_leave:(clientId:string) => void)=> (request,response ) => void} */
-	
+
 	function handler(
 		on_join,
 		on_leave
@@ -34,12 +72,12 @@ function SSE() {
 			response.writeHead(200, headers);
 			const client = { clientId, response }
 			clients.push(client);
-			console.log(`SSE: ${clientId} opened`);
+			log_server(`SSE: ${clientId} opened`);
 			on_join?.(clientId);
 			response.write(`event: welcome\ndata:${clientId}\n\n`);
 			setTimeout(() => { response.write("event:ping\n\n") }, 10_000);
 			request.on('close', () => {
-				console.log(`SSE: ${clientId} closed`);
+				log_server(`SSE: ${clientId} closed`);
 				on_leave?.(clientId);
 				clients = clients.filter((c) => { c.clientId !== clientId });
 			});
@@ -48,12 +86,14 @@ function SSE() {
 
 	/** @type {(clientId: string, message: string)=>void} */
 	function sendTo(clientId, message) {
-		const client = clients.find((c) =>  c.clientId === clientId );
+		log_server_msg(message);
+		const client = clients.find((c) => c.clientId === clientId);
 		client?.response.write(`event:game-data\ndata:${message}\n\n`);
 	}
 
 	/** @type {(message: string)=>void} */
 	function sendToAll(message) {
+		log_broadcast_msg(message);
 		clients.forEach(c => {
 			c.response.write(`event:game-data\ndata:${message}\n\n`);
 		})
@@ -84,18 +124,6 @@ function extract_server_code() {
 	return out.reverse().join("\n");
 }
 
-// Lua examples
-// Set a JS function to be a global lua function
-// lua.global.set('sum', (x, y) => x + y)
-
-// Run a lua string
-//await lua.doString(` print(sum(10, 10)) function multiply(x, y) return x * y end `)
-
-// Get a global lua function as a JS function
-//	const multiply = lua.global.get('multiply')
-
-//await lua.global.call("test", "Print this");
-
 async function init() {
 	const lua = await factory.createEngine()
 
@@ -117,22 +145,21 @@ async function init() {
 	/** @type {()=>void} **/
 	const init = lua.global.get("_s_init");
 
-	lua.global.set('s_dbg', (msg) => console.log("DEBUG: " + msg));
+	lua.global.set('s_dbg', (msg) => log_lua(msg));
 	lua.global.set('s_all', () => sse.clients.map(c => c.clientId));
 	lua.global.set('s_snd', (msg) => sse.sendToAll(msg));
 	lua.global.set('s_sndto', (c, msg) => sse.sendTo(c, msg));
 
 	//mimic some of the pico8 api
-	lua.global.set('sub', (str,begin,end)=>str?.substring(begin-1,end));
+	lua.global.set('sub', (str, begin, end) => str?.substring(begin - 1, end));
 
 
 	//sse.on_join = (clientid)=>join?.({clientid});
-	const on_join = (clientid) => join?.({clientid});
+	const on_join = (clientid) => join?.({ clientid });
 	const on_leave = (clientid) => leave?.({ clientid });
 
 	init?.();
 
-	console.log({ handle, join, leave, init });
 
 	const STATE = {
 		games: [],
@@ -146,26 +173,16 @@ async function init() {
 	app.post('/message', (request, response) => {
 		const clientId = request.header('X-Client-Id');
 		const msg = request.body;
-		//console.log(`Message received. msg: ${request.body} clientId: ${clientId}`);
+		log_client_msg(msg);
 		handle({ clientid: clientId }, msg);
 		response.sendStatus(200);
 	})
 
 	// Static game page
-	app.use('/game', express.static(__dirname + '/dist/www/'));
-
-
-	// Test
-	app.get('/lua', (req, res) => {
-		console.log("URL", req.url);
-		const multi_return = lua.global.call("test", "Print this");
-		res.send(multi_return[0] || "Lua had nothing to say");
-
-	})
-
+	app.use('/game', express.static('dist/www/'));
 
 	app.listen(port, () => {
-		console.log(`Example app listening on http://localhost:${port}`)
+		log_server(`Example app listening on http://localhost:${port}`)
 	})
 }
 

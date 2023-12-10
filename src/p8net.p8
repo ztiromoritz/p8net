@@ -206,8 +206,6 @@ end
 
 function _s_init(ctx)
  s_dbg("server init")
- 
- 
 end
 
 __gfx__
