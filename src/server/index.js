@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { LuaFactory } from 'wasmoon';
 import bodyParser from 'body-parser';
 import express from 'express';
@@ -5,6 +6,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 
 
+const P8_NET_WWW_FOLDER = process.env['P8_NET_WWW_FOLDER']??'dist/www';
 
 const app = express();
 const port = 6108
@@ -179,7 +181,7 @@ async function init() {
 	})
 
 	// Static game page
-	app.use('/game', express.static('dist/www/'));
+	app.use('/game', express.static(P8_NET_WWW_FOLDER));
 
 	app.listen(port, () => {
 		log_server(`Example app listening on http://localhost:${port}`)
